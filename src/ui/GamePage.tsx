@@ -97,12 +97,14 @@ const GamePage = () => {
     const idsToSummon = selectedSummonEntries.map((e) => e.id);
     for (const cardId of idsToSummon) {
       try {
+        engine.state.activePlayer = "A";
         engine.summonCreature("A", cardId);
         summoned += 1;
       } catch (err: any) {
         firstError = firstError ?? err.message;
       }
     }
+    engine.state.activePlayer = "A";
     setMessage(firstError ?? "");
     clearSelection();
     forceUpdate();
@@ -247,7 +249,7 @@ const GamePage = () => {
     ? handEntries.filter((h) => h.key !== tradeModal.tacticKey)
     : [];
   const deckOptions = tradeModal
-    ? state.players.A.deck.map((id, idx) => ({ key: `deck-${idx}-${id}`, id }))
+    ? state.players.A.deck.map((id, idx) => ({ key: `deck-${idx}-${id}`, id, card: cardPool[id] }))
     : [];
 
   const handleConfirmTrade = () => {
@@ -421,11 +423,16 @@ const GamePage = () => {
                 {discardOptions.map((opt) => {
                   const active = tradeModal.discardKey === opt.key;
                   const card = opt.card;
+                  const tint = affinityColors[card.affinity];
                   return (
                     <button
                       key={opt.key}
                       className={`chip ${active ? "active" : ""}`}
-                      style={{ borderColor: affinityColors[card.affinity], color: affinityColors[card.affinity] }}
+                      style={{
+                        borderColor: tint,
+                        color: tint,
+                        background: `${tint}22`
+                      }}
                       onClick={() => setTradeModal({ ...tradeModal, discardKey: opt.key })}
                     >
                       {card.name}
@@ -438,13 +445,18 @@ const GamePage = () => {
               <div className="modal-label">2) Take from deck</div>
               <div className="modal-grid">
                 {deckOptions.map((opt) => {
-                  const card = cardPool[opt.id];
+                  const card = opt.card;
                   const active = tradeModal.deckChoice === opt.id;
+                  const tint = affinityColors[card.affinity];
                   return (
                     <button
                       key={opt.key}
                       className={`chip ${active ? "active" : ""}`}
-                      style={{ borderColor: affinityColors[card.affinity], color: affinityColors[card.affinity] }}
+                      style={{
+                        borderColor: tint,
+                        color: tint,
+                        background: `${tint}22`
+                      }}
                       onClick={() => setTradeModal({ ...tradeModal, deckChoice: opt.id })}
                     >
                       {card.name}

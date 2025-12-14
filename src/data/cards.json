@@ -85,7 +85,7 @@
       ],
       "effects": [
         {
-          "kind": "SummonSpecificFromDeck",
+          "kind": "SummonSpecific",
           "target": {
             "owner": "self"
           },
