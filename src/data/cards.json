@@ -74,7 +74,7 @@
     {
       "id": "tactic_summon_gear_pair",
       "type": "Tactic",
-      "name": "Summon Gear",
+      "name": "Summon Gears",
       "affinity": "Earth",
       "timing": [
         "Summon"

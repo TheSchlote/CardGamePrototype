@@ -97,6 +97,23 @@ export class GameEngine {
     this.state.players.B = this.buildPlayer("B", this.state.decklists.B, this.state.cardLibrary);
   }
 
+  private cleanupBetweenRounds(): void {
+    const resetEnergy = () => Object.fromEntries(AFFINITIES.map((a) => [a, 0])) as PlayerState["energy"];
+    (["A", "B"] as PlayerId[]).forEach((pid) => {
+      const p = this.state.players[pid];
+      // move remaining hand and board to trash (cards are consumed for the match)
+      p.trash.push(...p.hand);
+      p.hand = [];
+      p.field.forEach((slot) => {
+        if (slot) p.trash.push(slot.card.id);
+      });
+      p.field = new Array(FIELD_SLOTS).fill(null);
+      p.energy = resetEnergy();
+      p.tempEffects = [];
+      p.triggers = [];
+    });
+  }
+
   startNextRound(): void {
     if (!this.state.roundResult) {
       throw new Error("Current round not finished");
@@ -105,6 +122,7 @@ export class GameEngine {
       throw new Error("Match already decided");
     }
     this.state.round += 1;
+    this.cleanupBetweenRounds();
     this.startRound();
   }
 
@@ -112,7 +130,6 @@ export class GameEngine {
     this.state.chain = null;
     this.state.consecutivePasses = 0;
     this.state.roundResult = undefined;
-    this.resetPlayers();
     this.state.phase = "Start";
     this.state.log.push(`Round ${this.state.round} start`);
     this.runStartPhase();
