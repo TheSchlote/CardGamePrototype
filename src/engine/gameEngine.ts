@@ -429,6 +429,9 @@ export class GameEngine {
       case "SummonSpecificFromHand":
         this.applySummonFromHand(effect, actor);
         break;
+      case "SummonSpecificFromDeck":
+        this.applySummonFromDeck(effect, actor);
+        break;
       case "TutorFromDeck":
         this.applyTutorFromDeck(effect, actor);
         break;
@@ -523,13 +526,10 @@ export class GameEngine {
       const fieldSlots = player.field;
       for (let slot = 0; slot < fieldSlots.length && remaining > 0; slot += 1) {
         if (fieldSlots[slot] !== null) continue;
-        const handIndex = player.hand.indexOf(params.cardId);
-        if (handIndex === -1) break;
         const creature = this.requireCard(params.cardId, "Creature") as CreatureCard;
         if (!params.ignoreCost && !payEnergyCost(player.energy, creature.affinity, creature.cost)) {
           break;
         }
-        player.hand.splice(handIndex, 1);
         fieldSlots[slot] = {
           instanceId: `creature_${this.instanceCounter++}`,
           card: creature,
@@ -538,6 +538,32 @@ export class GameEngine {
         };
         remaining -= 1;
         this.state.log.push(`${t.player} summons ${creature.name} by effect to slot ${slot + 1}`);
+      }
+    });
+  }
+
+  private applySummonFromDeck(effect: EffectDefinition, actor: PlayerId) {
+    const params = effect.params as { cardId: string; count?: number; ignoreCost?: boolean };
+    const count = params.count ?? 1;
+    const targets = this.selectTargets(effect.target, actor);
+    targets.forEach((t) => {
+      const player = this.state.players[t.player];
+      let remaining = count;
+      const fieldSlots = player.field;
+      for (let slot = 0; slot < fieldSlots.length && remaining > 0; slot += 1) {
+        if (fieldSlots[slot] !== null) continue;
+        const creature = this.requireCard(params.cardId, "Creature") as CreatureCard;
+        if (!params.ignoreCost && !payEnergyCost(player.energy, creature.affinity, creature.cost)) {
+          break;
+        }
+        fieldSlots[slot] = {
+          instanceId: `creature_${this.instanceCounter++}`,
+          card: creature,
+          currentAtk: creature.atk,
+          currentHp: creature.hp
+        };
+        remaining -= 1;
+        this.state.log.push(`${t.player} summons ${creature.name} from deck to slot ${slot + 1}`);
       }
     });
   }

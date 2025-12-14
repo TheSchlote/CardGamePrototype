@@ -50,6 +50,7 @@ export interface EffectDefinition {
     | "DiscardFromHand"
     | "DiscardSpecificFromHand"
     | "SummonSpecificFromHand"
+    | "SummonSpecificFromDeck"
     | "TutorFromDeck";
   target: TargetSelector;
   params: Record<string, unknown>;

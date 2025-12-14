@@ -85,14 +85,13 @@
       ],
       "effects": [
         {
-          "kind": "SummonSpecificFromHand",
+          "kind": "SummonSpecificFromDeck",
           "target": {
             "owner": "self"
           },
           "params": {
             "cardId": "creature_gear",
-            "count": 2,
-            "ignoreCost": true
+            "count": 2
           }
         }
       ]

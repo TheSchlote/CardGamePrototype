@@ -92,17 +92,19 @@ const GamePage = () => {
 
   const handleSummon = () => {
     if (!selectedSummonEntries.length) return;
-    try {
-      let summoned = 0;
-      for (const entry of selectedSummonEntries) {
-        engine.summonCreature("A", entry.id);
+    let summoned = 0;
+    let firstError: string | null = null;
+    const idsToSummon = selectedSummonEntries.map((e) => e.id);
+    for (const cardId of idsToSummon) {
+      try {
+        engine.summonCreature("A", cardId);
         summoned += 1;
+      } catch (err: any) {
+        firstError = firstError ?? err.message;
       }
-      setMessage(summoned > 0 ? "" : message);
-      clearSelection();
-    } catch (err: any) {
-      setMessage(err.message);
     }
+    setMessage(firstError ?? "");
+    clearSelection();
     forceUpdate();
   };
 
@@ -418,13 +420,15 @@ const GamePage = () => {
               <div className="modal-grid">
                 {discardOptions.map((opt) => {
                   const active = tradeModal.discardKey === opt.key;
+                  const card = opt.card;
                   return (
                     <button
                       key={opt.key}
                       className={`chip ${active ? "active" : ""}`}
+                      style={{ borderColor: affinityColors[card.affinity], color: affinityColors[card.affinity] }}
                       onClick={() => setTradeModal({ ...tradeModal, discardKey: opt.key })}
                     >
-                      {opt.card.name}
+                      {card.name}
                     </button>
                   );
                 })}
@@ -440,6 +444,7 @@ const GamePage = () => {
                     <button
                       key={opt.key}
                       className={`chip ${active ? "active" : ""}`}
+                      style={{ borderColor: affinityColors[card.affinity], color: affinityColors[card.affinity] }}
                       onClick={() => setTradeModal({ ...tradeModal, deckChoice: opt.id })}
                     >
                       {card.name}
