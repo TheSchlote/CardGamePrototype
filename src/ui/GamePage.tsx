@@ -10,6 +10,7 @@ import {
   type PlayerId,
   type TacticCard
 } from "@engine";
+import { payEnergyCost } from "@engine/utils";
 
 const affinityColors: Record<string, string> = {
   Nature: "#67d67a",
@@ -274,6 +275,60 @@ const GamePage = () => {
     }
   };
 
+  // Auto-pass when it's Player A's turn and no legal actions exist
+  useEffect(() => {
+    if (state.roundResult) return;
+    if (state.activePlayer !== "A") return;
+
+    const phase = state.phase;
+    const hasEmptySlot = state.players.A.field.some((slot) => slot === null);
+
+    const hasSummonAvailable =
+      phase === "Summon" &&
+      hasEmptySlot &&
+      handEntries.some((h) => {
+        if (h.card.type !== "Creature") return false;
+        const energyCopy = { ...state.players.A.energy };
+        return payEnergyCost(energyCopy as any, (h.card as CreatureCard).affinity, (h.card as CreatureCard).cost);
+      });
+
+    const chain = state.chain;
+    const canRespondInChain =
+      !!chain &&
+      chain.expectedResponder === "A" &&
+      handEntries.some((h) => {
+        if (h.card.type !== "Tactic") return false;
+        if (!(h.card as TacticCard).timing.includes(phase as any)) return false;
+        const chainLen = chain.plays.length;
+        if (chainLen === 0) return true;
+        if (chainLen === 1 || chainLen === 2) return h.card.chainable;
+        return false;
+      });
+
+    const canStartTactic =
+      !chain &&
+      ["Prepare", "Summon", "Action"].includes(phase) &&
+      handEntries.some((h) => h.card.type === "Tactic" && (h.card as TacticCard).timing.includes(phase as any));
+
+    const hasAction = chain ? canRespondInChain : hasSummonAvailable || canStartTactic;
+
+    if (!hasAction) {
+      engine.pass("A");
+      setMessage("");
+      forceUpdate();
+    }
+  }, [
+    engine,
+    forceUpdate,
+    handEntries,
+    state.activePlayer,
+    state.chain,
+    state.phase,
+    state.players.A.energy,
+    state.players.A.field,
+    state.roundResult
+  ]);
+
   return (
     <div className="page">
       <header className="topbar">
@@ -445,9 +500,9 @@ const GamePage = () => {
               <div className="modal-label">2) Take from deck</div>
               <div className="modal-grid">
                 {deckOptions.map((opt) => {
-                  const card = opt.card;
-                  const active = tradeModal.deckChoice === opt.id;
-                  const tint = affinityColors[card.affinity];
+    const card = opt.card;
+    const active = tradeModal.deckChoice === opt.id;
+    const tint = affinityColors[card.affinity];
                   return (
                     <button
                       key={opt.key}

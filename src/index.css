@@ -364,8 +364,9 @@ body {
 }
 
 .chip.active {
-  border-color: #9b7bff;
-  background: rgba(155, 123, 255, 0.15);
+  background: currentColor;
+  color: #0b1021;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.75);
 }
 
 .modal-actions {
