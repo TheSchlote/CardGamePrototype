@@ -28,7 +28,10 @@ describe("prepare phase", () => {
       deckOrders: { A: order, B: [...order] }
     });
 
-    engine.playTactic("A", "tactic_trade");
+    engine.playTactic("A", "tactic_trade", [
+      { params: { cardId: "creature_goblin" } },
+      { params: { cardId: "creature_goblin" } }
+    ]);
     expect(engine.state.chain?.plays).toHaveLength(1);
     engine.pass("B"); // resolves chain
 

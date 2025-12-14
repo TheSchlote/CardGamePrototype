@@ -196,9 +196,26 @@ export class GameEngine {
     this.finishAction(playerId);
   }
 
-  playTactic(playerId: PlayerId, cardId: string): void {
+  private withEffectOverrides(card: TacticCard, overrides?: Partial<EffectDefinition>[]): TacticCard {
+    if (!overrides || overrides.length === 0) return card;
+    return {
+      ...card,
+      effects: card.effects.map((effect, idx) => {
+        const override = overrides[idx];
+        if (!override) return effect;
+        return {
+          ...effect,
+          ...override,
+          params: { ...effect.params, ...(override.params ?? {}) }
+        };
+      })
+    };
+  }
+
+  playTactic(playerId: PlayerId, cardId: string, effectOverrides?: Partial<EffectDefinition>[]): void {
     if (this.state.roundResult) throw new Error("Round already finished");
-    const card = this.requireCard(cardId, "Tactic") as TacticCard;
+    const baseCard = this.requireCard(cardId, "Tactic") as TacticCard;
+    const card = this.withEffectOverrides(baseCard, effectOverrides);
     if (!card.timing.includes(this.state.phase as any)) {
       throw new Error(`Tactic ${card.name} cannot be played in ${this.state.phase}`);
     }
@@ -406,8 +423,14 @@ export class GameEngine {
       case "DiscardFromHand":
         this.applyDiscardFromHand(effect, actor);
         break;
+      case "DiscardSpecificFromHand":
+        this.applyDiscardSpecificFromHand(effect, actor);
+        break;
       case "SummonSpecificFromHand":
         this.applySummonFromHand(effect, actor);
+        break;
+      case "TutorFromDeck":
+        this.applyTutorFromDeck(effect, actor);
         break;
       default:
         throw new Error(`Unsupported effect ${effect.kind}`);
@@ -472,6 +495,24 @@ export class GameEngine {
     });
   }
 
+  private applyDiscardSpecificFromHand(effect: EffectDefinition, actor: PlayerId) {
+    const params = effect.params as { cardId?: string; count?: number };
+    const count = params.count ?? 1;
+    const targets = this.selectTargets(effect.target, actor);
+    targets.forEach((t) => {
+      const player = this.state.players[t.player];
+      for (let i = 0; i < count; i += 1) {
+        const cardId = params.cardId ?? player.hand[0];
+        if (!cardId) return;
+        const handIndex = player.hand.indexOf(cardId);
+        if (handIndex === -1) return;
+        player.hand.splice(handIndex, 1);
+        player.trash.push(cardId);
+        this.state.log.push(`${t.player} discards ${cardId}`);
+      }
+    });
+  }
+
   private applySummonFromHand(effect: EffectDefinition, actor: PlayerId) {
     const params = effect.params as { cardId: string; count?: number; ignoreCost?: boolean };
     const count = params.count ?? 1;
@@ -497,6 +538,28 @@ export class GameEngine {
         };
         remaining -= 1;
         this.state.log.push(`${t.player} summons ${creature.name} by effect to slot ${slot + 1}`);
+      }
+    });
+  }
+
+  private applyTutorFromDeck(effect: EffectDefinition, actor: PlayerId) {
+    const params = effect.params as { cardId?: string; count?: number };
+    const count = params.count ?? 1;
+    const targets = this.selectTargets(effect.target, actor);
+    targets.forEach((t) => {
+      const player = this.state.players[t.player];
+      for (let i = 0; i < count; i += 1) {
+        const cardId = params.cardId ?? player.deck[0];
+        if (!cardId) return;
+        const deckIndex = player.deck.indexOf(cardId);
+        if (deckIndex === -1) throw new Error(`Card ${cardId} not in deck`);
+        player.deck.splice(deckIndex, 1);
+        player.hand.push(cardId);
+        const card = this.state.cardLibrary.cards[cardId];
+        if (card.affinity !== "Neutral") {
+          player.energy[card.affinity] += 1;
+        }
+        this.state.log.push(`${t.player} adds ${card.name} to hand`);
       }
     });
   }
@@ -533,6 +596,8 @@ export class GameEngine {
           targets.push({ player: pid, card: creature, slot: idx });
         });
       } else if (selector.zone === "Hand") {
+        targets.push({ player: pid });
+      } else if (selector.zone === "Deck") {
         targets.push({ player: pid });
       }
     });

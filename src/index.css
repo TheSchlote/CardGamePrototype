@@ -223,6 +223,10 @@ body {
   box-shadow: 0 8px 24px rgba(56, 189, 248, 0.2);
 }
 
+.hand-card.playable {
+  box-shadow: 0 0 0 2px rgba(103, 214, 122, 0.4);
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -307,4 +311,66 @@ body {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.15);
   color: #e5e7eb;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.modal {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1rem;
+  width: min(520px, 90vw);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+
+.modal-section {
+  margin-top: 0.75rem;
+}
+
+.modal-label {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin-bottom: 0.4rem;
+}
+
+.modal-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  background: #1f2937;
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.chip.active {
+  border-color: #9b7bff;
+  background: rgba(155, 123, 255, 0.15);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }

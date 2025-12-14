@@ -14,7 +14,8 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: "jsdom",
+    // Engine tests don't need DOM; node avoids jsdom ESM/parse5 issues
+    environment: "node",
     setupFiles: "./vitest.setup.ts",
     coverage: {
       reporter: ["text", "html"],

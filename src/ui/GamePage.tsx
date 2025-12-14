@@ -64,30 +64,64 @@ const GamePage = () => {
   const engine = engineRef.current;
   const [, setTick] = useState(0);
   const [message, setMessage] = useState("");
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [tradeModal, setTradeModal] = useState<{
+    tacticKey: string;
+    discardKey?: string;
+    deckChoice?: string;
+  } | null>(null);
 
   const forceUpdate = () => setTick((t) => t + 1);
   const state = engine.state;
   const cardPool = state.cardLibrary.cards;
 
-  const activeHand = state.players.A.hand.map((id: string) => cardPool[id] as CardDefinition);
+  const handEntries = state.players.A.hand.map((id: string, idx: number) => ({
+    key: `${idx}-${id}`,
+    id,
+    card: cardPool[id] as CardDefinition
+  }));
+
+  const selectedTacticEntry = handEntries.find(
+    (h) => selectedKeys.includes(h.key) && h.card.type === "Tactic"
+  );
+  const selectedSummonEntries = handEntries.filter(
+    (h) => selectedKeys.includes(h.key) && h.card.type === "Creature"
+  );
+
+  const clearSelection = () => setSelectedKeys([]);
 
   const handleSummon = () => {
-    if (!selectedCardId) return;
+    if (!selectedSummonEntries.length) return;
     try {
-      engine.summonCreature("A", selectedCardId);
-      setMessage("");
-      forceUpdate();
+      let summoned = 0;
+      for (const entry of selectedSummonEntries) {
+        engine.summonCreature("A", entry.id);
+        summoned += 1;
+      }
+      setMessage(summoned > 0 ? "" : message);
+      clearSelection();
     } catch (err: any) {
       setMessage(err.message);
     }
+    forceUpdate();
   };
 
   const handlePlayTactic = () => {
-    if (!selectedCardId) return;
+    const tactic = selectedTacticEntry;
+    if (!tactic) return;
+    if (tactic.id === "tactic_trade" && state.activePlayer === "A") {
+      const discardable = handEntries.filter((h) => h.key !== tactic.key);
+      if (!discardable.length) {
+        setMessage("No other cards to trade.");
+        return;
+      }
+      setTradeModal({ tacticKey: tactic.key });
+      return;
+    }
     try {
-      engine.playTactic("A", selectedCardId);
+      engine.playTactic("A", tactic.id);
       setMessage("");
+      clearSelection();
       forceUpdate();
     } catch (err: any) {
       setMessage(err.message);
@@ -103,7 +137,7 @@ const GamePage = () => {
   const startNextRound = () => {
     try {
       engine.startNextRound();
-      setSelectedCardId(null);
+      clearSelection();
       setMessage("");
       forceUpdate();
     } catch (err: any) {
@@ -147,16 +181,15 @@ const GamePage = () => {
   }, [state.players.A.field, state.players.B.field]);
 
   const canSummon =
-    selectedCardId &&
-    cardPool[selectedCardId]?.type === "Creature" &&
+    selectedSummonEntries.length > 0 &&
     state.phase === "Summon" &&
     state.activePlayer === "A" &&
-    !state.roundResult;
+    !state.roundResult &&
+    !state.chain;
 
   const canPlayTactic =
-    selectedCardId &&
-    cardPool[selectedCardId]?.type === "Tactic" &&
-    (cardPool[selectedCardId] as TacticCard).timing.includes(state.phase as any) &&
+    !!selectedTacticEntry &&
+    (selectedTacticEntry.card as TacticCard).timing.includes(state.phase as any) &&
     state.activePlayer === "A" &&
     !state.roundResult;
 
@@ -169,8 +202,73 @@ const GamePage = () => {
             Start Next Round
           </button>
         )}
+        {Math.max(state.matchScore.A, state.matchScore.B) >= 2 && (
+          <button
+            className="ghost"
+            onClick={() => {
+              engineRef.current = new GameEngine({ seed: 2024 });
+              clearSelection();
+              setTradeModal(null);
+              setMessage("");
+              forceUpdate();
+            }}
+          >
+            Restart Match
+          </button>
+        )}
       </div>
     );
+
+  const playableClassForCard = (card: CardDefinition) => {
+    if (card.type !== "Tactic") return "";
+    const allowed =
+      card.timing.includes(state.phase as any) && state.activePlayer === "A" && !state.roundResult && !state.chain;
+    return allowed ? "playable" : "";
+  };
+
+  const handleCardClick = (entryKey: string) => {
+    const entry = handEntries.find((h) => h.key === entryKey);
+    if (!entry) return;
+    if (
+      state.phase === "Summon" &&
+      entry.card.type === "Creature" &&
+      state.activePlayer === "A" &&
+      !state.roundResult
+    ) {
+      setSelectedKeys((prev) => (prev.includes(entryKey) ? prev.filter((k) => k !== entryKey) : [...prev, entryKey]));
+    } else {
+      setSelectedKeys([entryKey]);
+    }
+  };
+
+  const discardOptions = tradeModal
+    ? handEntries.filter((h) => h.key !== tradeModal.tacticKey)
+    : [];
+  const deckOptions = tradeModal
+    ? state.players.A.deck.map((id, idx) => ({ key: `deck-${idx}-${id}`, id }))
+    : [];
+
+  const handleConfirmTrade = () => {
+    if (!tradeModal?.discardKey || !tradeModal.deckChoice) return;
+    const discardEntry = handEntries.find((h) => h.key === tradeModal.discardKey);
+    const tactic = handEntries.find((h) => h.key === tradeModal.tacticKey);
+    if (!discardEntry || !tactic) {
+      setTradeModal(null);
+      return;
+    }
+    try {
+      engine.playTactic("A", tactic.id, [
+        { params: { cardId: discardEntry.id } },
+        { params: { cardId: tradeModal.deckChoice } }
+      ]);
+      setMessage("");
+      setTradeModal(null);
+      clearSelection();
+      forceUpdate();
+    } catch (err: any) {
+      setMessage(err.message);
+    }
+  };
 
   return (
     <div className="page">
@@ -259,7 +357,7 @@ const GamePage = () => {
               Play Tactic
             </button>
             <button className="cta" disabled={!canSummon} onClick={handleSummon}>
-              Summon
+              Summon Selected
             </button>
             <button className="ghost" onClick={handlePass} disabled={!!state.roundResult}>
               Pass
@@ -267,14 +365,15 @@ const GamePage = () => {
           </div>
         </div>
         <div className="hand-cards">
-          {activeHand.map((card, idx) => {
-            const isSelected = selectedCardId === card.id;
+          {handEntries.map((entry, idx) => {
+            const isSelected = selectedKeys.includes(entry.key);
+            const card = entry.card;
             return (
               <div
-                key={`hand-${idx}-${card.id}`}
-                className={`hand-card ${isSelected ? "selected" : ""}`}
+                key={`hand-${idx}-${entry.id}`}
+                className={`hand-card ${isSelected ? "selected" : ""} ${playableClassForCard(card)}`}
                 style={{ borderColor: affinityColors[card.affinity] }}
-                onClick={() => setSelectedCardId(card.id)}
+                onClick={() => handleCardClick(entry.key)}
               >
                 <div className="card-header">
                   <span className="affinity" style={{ color: affinityColors[card.affinity] }}>
@@ -309,6 +408,61 @@ const GamePage = () => {
           ))}
         </ul>
       </section>
+
+      {tradeModal && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h3>Trade</h3>
+            <div className="modal-section">
+              <div className="modal-label">1) Discard</div>
+              <div className="modal-grid">
+                {discardOptions.map((opt) => {
+                  const active = tradeModal.discardKey === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      className={`chip ${active ? "active" : ""}`}
+                      onClick={() => setTradeModal({ ...tradeModal, discardKey: opt.key })}
+                    >
+                      {opt.card.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="modal-section">
+              <div className="modal-label">2) Take from deck</div>
+              <div className="modal-grid">
+                {deckOptions.map((opt) => {
+                  const card = cardPool[opt.id];
+                  const active = tradeModal.deckChoice === opt.id;
+                  return (
+                    <button
+                      key={opt.key}
+                      className={`chip ${active ? "active" : ""}`}
+                      onClick={() => setTradeModal({ ...tradeModal, deckChoice: opt.id })}
+                    >
+                      {card.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="ghost" onClick={() => setTradeModal(null)}>
+                Cancel
+              </button>
+              <button
+                className="cta"
+                disabled={!tradeModal.discardKey || !tradeModal.deckChoice}
+                onClick={handleConfirmTrade}
+              >
+                Confirm Trade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

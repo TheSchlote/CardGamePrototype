@@ -44,7 +44,13 @@ export interface DeckList {
 }
 
 export interface EffectDefinition {
-  kind: "ModifyStats" | "DrawCards" | "DiscardFromHand" | "SummonSpecificFromHand";
+  kind:
+    | "ModifyStats"
+    | "DrawCards"
+    | "DiscardFromHand"
+    | "DiscardSpecificFromHand"
+    | "SummonSpecificFromHand"
+    | "TutorFromDeck";
   target: TargetSelector;
   params: Record<string, unknown>;
   duration?: "Instant" | "UntilEndOfRound";

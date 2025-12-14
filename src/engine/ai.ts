@@ -57,6 +57,22 @@ const strongestOpponentCreature = (engine: GameEngine, playerId: PlayerId) => {
   return creatures[0]?.creature ?? null;
 };
 
+const playTacticWithDefaults = (engine: GameEngine, playerId: PlayerId, cardId: string): boolean => {
+  if (cardId === "tactic_trade") {
+    const player = engine.state.players[playerId];
+    const discardId = player.hand.find((id) => id !== "tactic_trade");
+    const deckPick = player.deck[0] ?? player.hand.find((id) => id !== discardId) ?? discardId;
+    if (!discardId) return false;
+    engine.playTactic(playerId, cardId, [
+      { params: { cardId: discardId } },
+      { params: { cardId: deckPick } }
+    ]);
+    return true;
+  }
+  engine.playTactic(playerId, cardId);
+  return true;
+};
+
 export const runAiStep = (engine: GameEngine, playerId: PlayerId): boolean => {
   if (engine.state.activePlayer !== playerId) return false;
 
@@ -65,8 +81,7 @@ export const runAiStep = (engine: GameEngine, playerId: PlayerId): boolean => {
     const chainTactic = pickTactic(engine, playerId, ["offense", "buff"]);
     if (chainTactic) {
       try {
-        engine.playTactic(playerId, chainTactic);
-        return true;
+        return playTacticWithDefaults(engine, playerId, chainTactic);
       } catch {
         // ignore and fall through to pass
       }
@@ -79,7 +94,7 @@ export const runAiStep = (engine: GameEngine, playerId: PlayerId): boolean => {
     case "Prepare": {
       const cardId = pickTactic(engine, playerId, ["buff", "draw"]);
       if (cardId) {
-        engine.playTactic(playerId, cardId);
+        playTacticWithDefaults(engine, playerId, cardId);
         return true;
       }
       engine.pass(playerId);
@@ -98,7 +113,7 @@ export const runAiStep = (engine: GameEngine, playerId: PlayerId): boolean => {
       // fallback: chainable summon tactic if allowed
       const tacticId = pickTactic(engine, playerId, ["summon"]);
       if (tacticId) {
-        engine.playTactic(playerId, tacticId);
+        playTacticWithDefaults(engine, playerId, tacticId);
         return true;
       }
       engine.pass(playerId);
@@ -107,7 +122,7 @@ export const runAiStep = (engine: GameEngine, playerId: PlayerId): boolean => {
     case "Action": {
       const cardId = pickTactic(engine, playerId, ["offense", "buff"]);
       if (cardId) {
-        engine.playTactic(playerId, cardId);
+        playTacticWithDefaults(engine, playerId, cardId);
         return true;
       }
       engine.pass(playerId);
