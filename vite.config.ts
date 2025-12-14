@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
+  // Use the repo name so GitHub Pages serves assets from /CardGamePrototype/
+  base: "/CardGamePrototype/",
   plugins: [react()],
   resolve: {
     alias: {

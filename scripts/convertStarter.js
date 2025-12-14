@@ -39,7 +39,7 @@ const normalizeCard = (card) => {
 };
 
 const main = () => {
-  const sourcePath = path.resolve("starterDeck.json");
+  const sourcePath = path.resolve("docs/starterDeck.json");
   const data = readJsonWithComments(sourcePath);
   const cards = data.cards.map(normalizeCard);
   const outDir = path.resolve("generated");

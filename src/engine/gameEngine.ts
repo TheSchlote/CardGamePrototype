@@ -127,8 +127,8 @@ export class GameEngine {
     this.state.triggerQueue = [];
     this.state.players.A.tempEffects = [];
     this.state.players.B.tempEffects = [];
+    // enqueueTriggers already includes both players' triggers; call once to avoid double firing
     this.enqueueTriggers("OnStartPhase", "A");
-    this.enqueueTriggers("OnStartPhase", "B");
     this.runTriggerQueue();
   }
 
